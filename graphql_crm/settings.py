@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'graphene_django',
+    'django_filters',  # ← ADD THIS LINE
     'crm',
 ]
 
@@ -70,7 +71,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'graphql_crm.wsgi.application'
-
 
 
 # Database
@@ -127,5 +127,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # GraphQL Schema Configuration
 GRAPHENE = {
-    'SCHEMA': 'schema.schema'
+    'SCHEMA': 'graphql_crm.schema.schema'
 }

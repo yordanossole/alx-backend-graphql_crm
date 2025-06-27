@@ -1,10 +1,12 @@
 import graphene
 from graphene_django import DjangoObjectType
+from graphene_django.filter import DjangoFilterConnectionField
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from decimal import Decimal
 import re
 from .models import Customer, Product, Order
+from .filters import CustomerFilter, ProductFilter, OrderFilter
 
 
 # GraphQL Types
@@ -12,21 +14,56 @@ class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
         fields = '__all__'
+        interfaces = (graphene.relay.Node,)
+        filterset_class = CustomerFilter
 
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
         fields = '__all__'
+        interfaces = (graphene.relay.Node,)
+        filterset_class = ProductFilter
 
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
         fields = '__all__'
+        interfaces = (graphene.relay.Node,)
+        filterset_class = OrderFilter
 
 
-# Input Types
+# Input Types for Filtering
+class CustomerFilterInput(graphene.InputObjectType):
+    name_icontains = graphene.String()
+    email_icontains = graphene.String()
+    created_at_gte = graphene.DateTime()
+    created_at_lte = graphene.DateTime()
+    phone_pattern = graphene.String()
+
+
+class ProductFilterInput(graphene.InputObjectType):
+    name_icontains = graphene.String()
+    price_gte = graphene.Decimal()
+    price_lte = graphene.Decimal()
+    stock_gte = graphene.Int()
+    stock_lte = graphene.Int()
+    low_stock = graphene.Boolean()
+
+
+class OrderFilterInput(graphene.InputObjectType):
+    total_amount_gte = graphene.Decimal()
+    total_amount_lte = graphene.Decimal()
+    order_date_gte = graphene.DateTime()
+    order_date_lte = graphene.DateTime()
+    customer_name = graphene.String()
+    product_name = graphene.String()
+    product_id = graphene.ID()
+    customer_email = graphene.String()
+
+
+# Input Types for Mutations
 class CustomerInput(graphene.InputObjectType):
     name = graphene.String(required=True)
     email = graphene.String(required=True)
@@ -256,9 +293,35 @@ class CreateOrder(graphene.Mutation):
 # Query Class
 class Query(graphene.ObjectType):
     hello = graphene.String()
+    
+    # Simple list queries (non-filtered)
     customers = graphene.List(CustomerType)
     products = graphene.List(ProductType)
     orders = graphene.List(OrderType)
+    
+    # Filtered connection queries
+    all_customers = DjangoFilterConnectionField(CustomerType, filterset_class=CustomerFilter)
+    all_products = DjangoFilterConnectionField(ProductType, filterset_class=ProductFilter)
+    all_orders = DjangoFilterConnectionField(OrderType, filterset_class=OrderFilter)
+    
+    # Custom filtered queries with input objects
+    filtered_customers = graphene.List(
+        CustomerType,
+        filter=CustomerFilterInput(),
+        order_by=graphene.String()
+    )
+    
+    filtered_products = graphene.List(
+        ProductType,
+        filter=ProductFilterInput(),
+        order_by=graphene.String()
+    )
+    
+    filtered_orders = graphene.List(
+        OrderType,
+        filter=OrderFilterInput(),
+        order_by=graphene.String()
+    )
 
     def resolve_hello(self, info):
         return "Hello, GraphQL!"
@@ -271,6 +334,74 @@ class Query(graphene.ObjectType):
 
     def resolve_orders(self, info):
         return Order.objects.all()
+    
+    def resolve_filtered_customers(self, info, filter=None, order_by=None):
+        queryset = Customer.objects.all()
+        
+        if filter:
+            if filter.get('name_icontains'):
+                queryset = queryset.filter(name__icontains=filter['name_icontains'])
+            if filter.get('email_icontains'):
+                queryset = queryset.filter(email__icontains=filter['email_icontains'])
+            if filter.get('created_at_gte'):
+                queryset = queryset.filter(created_at__gte=filter['created_at_gte'])
+            if filter.get('created_at_lte'):
+                queryset = queryset.filter(created_at__lte=filter['created_at_lte'])
+            if filter.get('phone_pattern'):
+                queryset = queryset.filter(phone__startswith=filter['phone_pattern'])
+        
+        if order_by:
+            queryset = queryset.order_by(order_by)
+            
+        return queryset
+    
+    def resolve_filtered_products(self, info, filter=None, order_by=None):
+        queryset = Product.objects.all()
+        
+        if filter:
+            if filter.get('name_icontains'):
+                queryset = queryset.filter(name__icontains=filter['name_icontains'])
+            if filter.get('price_gte'):
+                queryset = queryset.filter(price__gte=filter['price_gte'])
+            if filter.get('price_lte'):
+                queryset = queryset.filter(price__lte=filter['price_lte'])
+            if filter.get('stock_gte'):
+                queryset = queryset.filter(stock__gte=filter['stock_gte'])
+            if filter.get('stock_lte'):
+                queryset = queryset.filter(stock__lte=filter['stock_lte'])
+            if filter.get('low_stock'):
+                queryset = queryset.filter(stock__lt=10)
+        
+        if order_by:
+            queryset = queryset.order_by(order_by)
+            
+        return queryset
+    
+    def resolve_filtered_orders(self, info, filter=None, order_by=None):
+        queryset = Order.objects.all()
+        
+        if filter:
+            if filter.get('total_amount_gte'):
+                queryset = queryset.filter(total_amount__gte=filter['total_amount_gte'])
+            if filter.get('total_amount_lte'):
+                queryset = queryset.filter(total_amount__lte=filter['total_amount_lte'])
+            if filter.get('order_date_gte'):
+                queryset = queryset.filter(order_date__gte=filter['order_date_gte'])
+            if filter.get('order_date_lte'):
+                queryset = queryset.filter(order_date__lte=filter['order_date_lte'])
+            if filter.get('customer_name'):
+                queryset = queryset.filter(customer__name__icontains=filter['customer_name'])
+            if filter.get('product_name'):
+                queryset = queryset.filter(products__name__icontains=filter['product_name'])
+            if filter.get('product_id'):
+                queryset = queryset.filter(products__id=filter['product_id'])
+            if filter.get('customer_email'):
+                queryset = queryset.filter(customer__email__icontains=filter['customer_email'])
+        
+        if order_by:
+            queryset = queryset.order_by(order_by)
+            
+        return queryset.distinct()
 
 
 # Mutation Class
