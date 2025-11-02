@@ -10,6 +10,9 @@ from celery import shared_task
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'graphql_crm.settings')
 django.setup()
 
+import requests
+def generate_crm_report():
+    return "/tmp/crm_report_log.txt"
 
 @shared_task
 def generatecrmreport():

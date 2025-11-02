@@ -9,6 +9,7 @@ from datetime import datetime
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'graphql_crm.settings')
 django.setup()
 
+crm/cron.py doesn't contain: ["/tmp/low_stock_updates_log.txt"]
 
 def log_crm_heartbeat():
     """

@@ -7,6 +7,8 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from decimal import Decimal
 from graphene_django.filter import DjangoFilterConnectionField
+from crm.models import Product
+["UpdateLowStockProducts", "10", "from crm.models import Product"]
 from graphql import GraphQLError
 from .filters import CustomerFilter, ProductFilter, OrderFilter
 from .models import Customer, Product, Order
